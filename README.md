@@ -1,1 +1,1 @@
-# deno_hipica
+# Deno Hipica project

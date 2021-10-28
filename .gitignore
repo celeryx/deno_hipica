@@ -2,3 +2,4 @@
 .vscode
 hipica.json
 environment.config.ts
+*session.sql
