@@ -9,26 +9,19 @@ import {CampaniasModel} from "../models/campanias.model.ts";
 
 export class HipicaRepository {
 
+    private env = Deno.env;
+
+    private pool: Pool = new Pool({
+
+        user: this.env.get('DB_USER'),
+        hostname: this.env.get('DB_HOSTNAME'),
+        database: this.env.get('DB_DATABASE'),
+        password:this.env.get('DB_PASSWORD'),
+        port: this.env.get('DB_PORT') || 5432
+    }, 35 , false);
     
+
     constructor(){
-    }
-
-
-    private crearConexion(): Promise<Pool> {
-
-        const env = Deno.env;
-
-        const client = new Pool({
-
-            user: env.get('DB_USER'),
-            hostname: env.get('DB_HOSTNAME'),
-            database: env.get('DB_DATABASE'),
-            password:env.get('DB_PASSWORD'),
-            port: env.get('DB_PORT') || 5432
-        }, 2000 , true);
-
-    
-        return Promise.resolve(client);
     }
 
 
@@ -36,15 +29,17 @@ export class HipicaRepository {
 
         try {
 
-            const pool: Pool = await this.crearConexion();
+            const pool: Pool = this.pool;
 
             const client = await pool.connect();
 
-            await this.setDateStyle(client);
+            await this.guardarTipoCampania(client);
+
+            await this.guardarTipoPronosticos(races, client);
             
             console.time('test');
 
-            const promises = this.iterarData(races, pool);
+            const promises = this.iterarData(races);
 
             Promise.all(promises).then(() => {
 
@@ -60,16 +55,7 @@ export class HipicaRepository {
     }
 
 
-    private async setDateStyle(client: PoolClient) {
-
-        await client.queryObject("SET datestyle to 'ISO, DMY'");
-        //await client.queryObject("SET search_path TO 'hipica'")
-        return Promise.resolve();
-
-    }
-
-
-    private iterarData(races: Array<RaceModel>, pool: Pool): Array<Promise<void>> {
+    private iterarData(races: Array<RaceModel>): Array<Promise<void>> {
 
         const list: Array<Promise<void>> = [];
 
@@ -77,25 +63,24 @@ export class HipicaRepository {
             
             const p1 = (async () => {
 
-                const client: PoolClient = await pool.connect();
-
-                console.log(race.fecha_carrera + '  ' + race.numero_carrera);
+                const client: PoolClient = await this.pool.connect();
     
+                console.log("cliente creado ", client.session);
+
                 await this.guardarPista(race.track, client);
     
                 const p0 = this.guardarCarrera(race, client);
-                const pt = this.guardarTipoPronosticos(race.forecast, client);
-    
-                await Promise.all([p0, pt]).then(async _ => {
-                    this.guardarPronosticos(race, client);
-                    await this.guardarTipoCampania(client);
+                
+                let pp;
+
+                await Promise.all([p0]).then(() => {
+                    pp = this.guardarPronosticos(race, client);
                 });
     
     
                 for (const caballo of race.caballos) {
-    
+
                     const pj = this.guardarJinetes(caballo, client);
-    
                     const p1 = this.guardarHaras(caballo, client);
                     const p2 = this.guardarStud(caballo, client);
                     const p3 = this.guardarPreparador(caballo, client);
@@ -108,11 +93,13 @@ export class HipicaRepository {
                     const p5 = this.guardarContratiempos(caballo, client);
                     const p6 = this.guardarCampanias(caballo, client);
     
-                    await Promise.all([pj, p4, p5, p6]).then(async _ => {
+                    await Promise.all([pp, pj, p4, p5, p6]).then(async _ => {
                         await this.guardarCarreraCaballoJinete(race.id, caballo, client);
                     });
                 }
-    
+
+                console.log(race.fecha_carrera + '  ' + race.numero_carrera);
+
                 client.release();
             });
             
@@ -205,37 +192,40 @@ export class HipicaRepository {
     }
 
 
-    private async guardarTipoPronosticos(forecast: Array<Person_forecastModel>, client: PoolClient): Promise<void> {
+    private async guardarTipoPronosticos(races: Array<RaceModel>, client: PoolClient): Promise<void> {
 
-        for (const pronostico_nombre of forecast) {
+        for (const race of races) {
 
-            const query = `with s as (select id_tipo_pronostico
-                                      from tipo_pronostico
-                                      where nombre ilike $1),
-                                i as (insert into tipo_pronostico (nombre)
-                                    select ($1)
-                                    where not exists(select 1 from s)
-                                    returning id_tipo_pronostico)
-                           select id_tipo_pronostico
-                           from i
-                           union all
-                           select id_tipo_pronostico
-                           from s`;
+            for(const pronostico_nombre of race.forecast) {
 
-
-            const values = [pronostico_nombre.name];
-
-
-            try {
-
-                let result:any = await client.queryObject({text: query, args:values});
-                pronostico_nombre.id = result?.rows[0]?.id_tipo_pronostico;
+                const query = `with s as (select id_tipo_pronostico
+                                        from tipo_pronostico
+                                        where nombre ilike $1),
+                                    i as (insert into tipo_pronostico (nombre)
+                                        select ($1)
+                                        where not exists(select 1 from s)
+                                        returning id_tipo_pronostico)
+                            select id_tipo_pronostico
+                            from i
+                            union all
+                            select id_tipo_pronostico
+                            from s`;
 
 
-            } catch (err: any) {
+                const values = [pronostico_nombre.name];
 
-                console.log('GUARDAR CARRERA CATCH:: ', err?.message);
-                throw new Error();
+
+                try {
+
+                    let result:any = await client.queryObject({text: query, args:values});
+                    pronostico_nombre.id = result?.rows[0]?.id_tipo_pronostico;
+
+
+                } catch (err: any) {
+
+                    console.log('GUARDAR CARRERA CATCH:: ', err?.message);
+                    throw new Error();
+                }
             }
         }
 
@@ -300,9 +290,8 @@ export class HipicaRepository {
 
             try {
                 
-                const result = await client.queryObject<any>({text: query, args:tipo});
-                const id: number = result.rows[0].id_tipo_campanias;
-
+                await client.queryObject({text: query, args:tipo});
+              
             } catch (err: any) {
 
                 console.log('GUARDAR TIPO CAMPANIA CATCH:: ', err?.message);
@@ -310,7 +299,6 @@ export class HipicaRepository {
 
             }
         }
-
 
         Promise.resolve();
     }
