@@ -1,4 +1,4 @@
 .idea
 .vscode
 hipica.json
-*.config.ts
+environment.config.ts
