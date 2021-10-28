@@ -1,11 +1,11 @@
-import { PoolClient, Pool } from "https://deno.land/x/postgres@v0.13.0/mod.ts";
+import { PoolClient, Pool } from "../deps.ts";
 import {RaceModel} from "../models/race.model.ts";
 import {TrackModel} from "../models/track.model.ts";
 import {Person_forecastModel} from "../models/person_forecast.model.ts";
 import {TipoCampaniasEnum} from "../enums/tipo-campanias.enum.ts";
 import {HorseModel} from "../models/horses.model.ts";
 import {CampaniasModel} from "../models/campanias.model.ts";
-import { QueryObjectResult, QueryResult } from "https://deno.land/x/postgres@v0.13.0/query/query.ts";
+
 
 export class HipicaRepository {
 
@@ -14,21 +14,21 @@ export class HipicaRepository {
     }
 
 
-    private async crearConexion(): Promise<PoolClient> {
+    private crearConexion(): Promise<Pool> {
 
         const env = Deno.env;
 
-        const client = await new Pool({
+        const client = new Pool({
 
             user: env.get('DB_USER'),
             hostname: env.get('DB_HOSTNAME'),
             database: env.get('DB_DATABASE'),
             password:env.get('DB_PASSWORD'),
             port: env.get('DB_PORT') || 5432
-        }, 10 , true);
+        }, 2000 , true);
 
     
-        return Promise.resolve(client.connect());
+        return Promise.resolve(client);
     }
 
 
@@ -36,20 +36,21 @@ export class HipicaRepository {
 
         try {
 
-            const client: PoolClient = await this.crearConexion();
+            const pool: Pool = await this.crearConexion();
 
-            await client.connect();
+            const client = await pool.connect();
 
             await this.setDateStyle(client);
-
             
             console.time('test');
 
-            await this.iterarData(races, client);
+            const promises = this.iterarData(races, pool);
 
-            console.timeEnd('test');
+            Promise.all(promises).then(() => {
 
-            console.log("FIN");
+                console.timeEnd('test');
+                console.log("FIN");
+            });
 
         } catch (err: any) {
 
@@ -68,50 +69,58 @@ export class HipicaRepository {
     }
 
 
-    private async iterarData(races: Array<RaceModel>, client: PoolClient) {
+    private iterarData(races: Array<RaceModel>, pool: Pool): Array<Promise<void>> {
+
+        const list: Array<Promise<void>> = [];
 
         for (const race of races) {
+            
+            const p1 = (async () => {
 
-            console.log(race.fecha_carrera + '  ' + race.numero_carrera);
+                const client: PoolClient = await pool.connect();
 
-            await this.guardarPista(race.track, client);
-
-            const p0 = this.guardarCarrera(race, client);
-            const pt = this.guardarTipoPronosticos(race.forecast, client);
-
-            await Promise.all([p0, pt]).then(async _ => {
-                this.guardarPronosticos(race, client);
-                await this.guardarTipoCampania(client);
-                return Promise.resolve();
+                console.log(race.fecha_carrera + '  ' + race.numero_carrera);
+    
+                await this.guardarPista(race.track, client);
+    
+                const p0 = this.guardarCarrera(race, client);
+                const pt = this.guardarTipoPronosticos(race.forecast, client);
+    
+                await Promise.all([p0, pt]).then(async _ => {
+                    this.guardarPronosticos(race, client);
+                    await this.guardarTipoCampania(client);
+                });
+    
+    
+                for (const caballo of race.caballos) {
+    
+                    const pj = this.guardarJinetes(caballo, client);
+    
+                    const p1 = this.guardarHaras(caballo, client);
+                    const p2 = this.guardarStud(caballo, client);
+                    const p3 = this.guardarPreparador(caballo, client);
+    
+                    await Promise.all([p1, p2, p3]).then(async _ => {
+                        await this.guardarCaballos(caballo, client);
+                    });
+    
+                    const p4 = this.guardarEstadisticaCaballo(caballo, client);
+                    const p5 = this.guardarContratiempos(caballo, client);
+                    const p6 = this.guardarCampanias(caballo, client);
+    
+                    await Promise.all([pj, p4, p5, p6]).then(async _ => {
+                        await this.guardarCarreraCaballoJinete(race.id, caballo, client);
+                    });
+                }
+    
+                client.release();
             });
+            
+            list.push(p1());
 
-
-            for (const caballo of race.caballos) {
-
-                const pj = this.guardarJinetes(caballo, client);
-
-                const p1 = this.guardarHaras(caballo, client);
-                const p2 = this.guardarStud(caballo, client);
-                const p3 = this.guardarPreparador(caballo, client);
-
-                await Promise.all([p1, p2, p3]).then(async _ => {
-                    await this.guardarCaballos(caballo, client);
-                    return Promise.resolve();
-                });
-
-                const p4 = this.guardarEstadisticaCaballo(caballo, client);
-                const p5 = this.guardarContratiempos(caballo, client);
-                const p6 = this.guardarCampanias(caballo, client);
-
-                await Promise.all([pj, p4, p5, p6]).then(async _ => {
-                    await this.guardarCarreraCaballoJinete(race.id, caballo, client);
-                    return Promise.resolve();
-                });
-            }
         }
         
-        client.end();
-        return Promise.resolve();
+        return list;
     }
 
 
