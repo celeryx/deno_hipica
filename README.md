@@ -22,7 +22,7 @@
 * Abrir la carpeta  "deno_hipica" en "VS Code"
 * En la ruta "src/hipica/configuration" 
 > Modificar el nombre del archivo "environment.example.config.ts" por "environment.config.ts"
-> Completar las variables de ambientes en el archivo
+>> Completar las variables de ambientes en el archivo
 * Abrir un cliente de base de datos y ejecutar el script que se encuenbtra en la ruta "src/resources"
 * Abrir un terminal en "VS Code" y  Ejecutar comando:
 > deno run --allow-net --allow-env --allow-write --allow-read src/hipica/server.ts 
