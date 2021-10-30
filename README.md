@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Deno Hipica project
 =======
 <a name="top"></a>
@@ -34,4 +33,3 @@
 
 
 [Subir](#top)
->>>>>>> 966f69e836ef7f06dfb0062b0252dc10a7985c07
