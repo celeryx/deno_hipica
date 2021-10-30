@@ -1,5 +1,3 @@
-# Deno Hipica project
-=======
 <a name="top"></a>
 # Hipica Data Deno
 
