@@ -19,6 +19,10 @@ services:
     depends_on:
       - pgsql_db
       - configuration_environment
+    dns:
+      - 8.8.8.8
+      - 4.4.4.4
+
 
   pgsql_db:
     image: postgres
