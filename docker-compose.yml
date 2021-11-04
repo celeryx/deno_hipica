@@ -1,0 +1,49 @@
+
+version: "3"
+services:
+  configuration_environment:
+    image: alpine
+    volumes:
+    - "./src/hipica/configuration:/mnt"
+    entrypoint: "cp -n /mnt/environment.docker-compose.config.ts /mnt/environment.config.ts"
+
+  app:
+    image: denoland/deno
+    working_dir: /app
+    volumes:
+    - "./:/app"
+    command: run --allow-net --allow-env --allow-write --allow-read src/hipica/server.ts
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - pgsql_db
+      - configuration_environment
+    dns:
+      - 8.8.8.8
+      - 4.4.4.4
+
+
+  pgsql_db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: deno_hipica
+    volumes:
+    - ./src/hipica/resources/create_database.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3232:5432"
+
+  
+  adminer:
+    image: wodby/adminer
+    restart: always
+    environment:
+      ADMINER_DEFAULT_DB_DRIVER: pgsql
+      ADMINER_DEFAULT_DB_HOST: pgsql_db
+      ADMINER_DEFAULT_DB_NAME: deno_hipica
+      ADMINER_DESIGN: price
+    ports:
+      - 8080:9000
