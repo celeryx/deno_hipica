@@ -5,7 +5,7 @@ services:
     image: alpine
     volumes:
     - "./src/hipica/configuration:/mnt"
-    entrypoint: "cp /mnt/environment.docker-compose.config.ts /mnt/environment.config.ts"
+    entrypoint: "cp -n /mnt/environment.docker-compose.config.ts /mnt/environment.config.ts"
 
   app:
     image: denoland/deno
