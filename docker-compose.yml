@@ -1,6 +1,12 @@
 
 version: "3"
 services:
+  configuration_environment:
+    image: alpine
+    volumes:
+    - "./src/hipica/configuration:/mnt"
+    entrypoint: "cp /mnt/environment.docker-compose.config.ts /mnt/environment.config.ts"
+
   app:
     image: denoland/deno
     volumes:
@@ -10,6 +16,7 @@ services:
       - "8000:8000"
     depends_on:
       - pgsql_db
+      - configuration_environment
 
   pgsql_db:
     image: postgres
