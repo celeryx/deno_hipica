@@ -38,6 +38,6 @@ services:
       ADMINER_DEFAULT_DB_DRIVER: pgsql
       ADMINER_DEFAULT_DB_HOST: pgsql_db
       ADMINER_DEFAULT_DB_NAME: deno_hipica
-      ADMINER_DESIGN: pilot
+      ADMINER_DESIGN: haeckel
     ports:
       - 8080:9000
