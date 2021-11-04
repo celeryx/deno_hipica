@@ -9,9 +9,10 @@ services:
 
   app:
     image: denoland/deno
+    working_dir: /app
     volumes:
-    - "./src:/app"
-    command: deno run --allow-net --allow-env --allow-write --allow-read /app/hipica/server.ts
+    - "./:/app"
+    command: run --allow-net --allow-env --allow-write --allow-read src/hipica/server.ts
     ports:
       - "8000:8000"
     depends_on:
