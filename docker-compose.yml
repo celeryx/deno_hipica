@@ -29,6 +29,8 @@ services:
       POSTGRES_DB: deno_hipica
     volumes:
     - ./src/hipica/resources/create_database.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3232:5432"
 
   
   adminer:
