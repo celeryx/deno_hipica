@@ -13,6 +13,7 @@ services:
     volumes:
     - "./:/app"
     command: run --allow-net --allow-env --allow-write --allow-read src/hipica/server.ts
+    restart: always
     ports:
       - "8000:8000"
     depends_on:
