@@ -38,7 +38,7 @@ Para levantar el ambiente, ubiquese en la carpeta raíz del proyecto clonado y e
 docker-compose up
 ```
 
-Una los contenedores hayan sido levantados, puede acceder a la aplicación mediante la misma url señada en [Instrucciones](#instrucciones).
+Una vez los contenedores hayan sido levantados, puede acceder a la aplicación mediante la misma url señada en [Instrucciones](#instrucciones).
 > http://localhost:8000/api/v1/hipica/getClubHipico/file/true/reload/true
 
 Durante la ejecución de docker-compose, se habrán levantado 3 contenedores los cuales podrá acceder a tráves de los siguientes puertos:
